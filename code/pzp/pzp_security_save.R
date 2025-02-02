@@ -8,7 +8,7 @@ library(ggrepel)
 library(lubridate)
 library(gridExtra)
 
-pzp <- read_excel("przewalski/data/pzp/pzpdata.xlsx")
+pzp <- read_excel("data/pzp/pzpdata.xlsx")
 pzp <- mutate_if(pzp, is.POSIXct, as.Date)
 # calculating numbers and efficiency for the whole dataset ----
 
