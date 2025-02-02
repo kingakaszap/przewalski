@@ -1,0 +1,11 @@
+Days alive, alive in given year or not - ? When would they still count to the age ratio
+In a growing population, effect of overall sex ratio on group size - ? 
+Effect of male quality (offspring no) on group leaving rate (would be zero inflated i think) and on group size
+How do I account for the temporal aspect
+
+Ask Viola for a list of the population number in each year
+
+What affects foal mortality? Year, female age, female having foal before or not, group size, male quality
+It's probably more random ? Idk
+
+Not include PZP at all bc of current paper I think
