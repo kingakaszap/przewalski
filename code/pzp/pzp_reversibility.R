@@ -190,7 +190,6 @@ max(efficient_zero$age_at_primer)/365
 
 # if we just look at the "standard treatment"----
 # filter horses who got 2 or 3 vaccines
-str(pzp)
 reversibility_data <- pzp %>% filter(!is.na(Primer) & !is.na(Booster1) 
                                      & is.na (Booster3) & is.na(Booster4)) %>% 
   mutate(which_vaccines = case_when(!is.na(Booster2) ~ "3",
@@ -203,35 +202,24 @@ reversibility_data <- pzp %>% filter(!is.na(Primer) & !is.na(Booster1)
     summarise(count = length(which_vaccines)))
 # 60 got 2 vaccines, 86 got 3
 
+str(reversibility_data[,25:34])
 # add how many years of data we have
 reversibility_data <- reversibility_data %>%
-  mutate(
-    years_of_data = ifelse(
-      !is.na(Primer_again), 
+  mutate(years_of_data = 
+           ifelse(!is.na(Primer_again), 
       as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y")),
-      apply(select(., 25:33), 1, function(row) {
+      apply(select(., 25:34), 1, function(row) {
         # if they didnt start treatment again - 
         stop_index <- which(is.na(row) | row == "OUT")[1]
-        if (is.na(stop_index)) {
-          9 # Maximum years if no NA or "OUT" is found 
-          # or maybe this should be 10 years? check
-        } else {
-          stop_index - 1 # Count up to the first occurrence
-        }
-      })
-    )
-  )
-
-
-str(reversibility_data[, 25:33])
+        if (is.na(stop_index)) {10 }
+        # Maximum years if no NA or "OUT" is found 
+        else {stop_index - 1} 
+      })))# Count up to the first occurrence
 
 # remove observations of horses with no data 
 reversibility_data <- filter(reversibility_data, years_of_data != "0")
 
-reversibility_data$Foal_DOB_P_9yr<- as.Date(reversibility_data$Foal_DOB_P_9yr)
-reversibility_data$Foal_DOB_P_10yr<- as.Date(reversibility_data$Foal_DOB_P_10yr)
-
-# variable for whether ever observed to give birth again
+# variable for whether ever observed to give birth again (logi)
 reversibility_data <- reversibility_data %>% 
   mutate(birth_again = sapply(1:nrow(.), function(i) {
     row <- as.vector(unlist(select(.[i,], 11:20)))
@@ -239,9 +227,9 @@ reversibility_data <- reversibility_data %>%
     {Booster2[i] } 
     else if (which_vaccines[i] ==2) {Booster1[i]}
     else {NA}
-    any(row > booster_value, na.rm = TRUE)
-  }))
-# add when the first recorded birth was if any
+    any(row > booster_value, na.rm = TRUE)}))
+
+# add when the first recorded birth post-treatment was if any
 reversibility_data <- reversibility_data %>%
   mutate(date_birth_again = as.Date(sapply(1:nrow(.), function(i) {
     row <- as.vector(unlist(select(.[i, ], 11:20)))
@@ -249,12 +237,12 @@ reversibility_data <- reversibility_data %>%
     else if (which_vaccines[i] == 2) 
     {Booster1[i]} 
     else { NA}
-    if (birth_again[i]) {
-      return(min(row[!is.na(row) & row > booster_value]))
-    } else {
-      return(NA)  # If birth_again is FALSE, return NA
-    }
-  }))) 
+    if (birth_again[i]) 
+    # this means if birth again is TRUE
+    {return(min(row[!is.na(row) & row > booster_value]))} 
+    else 
+    {return(NA)  # If birth_again is FALSE, return NA
+    }}))) 
 
 str(reversibility_data)
 (reversible_summary <- reversibility_data %>% 
@@ -306,7 +294,7 @@ ggsave("pzp/plots/years_vs_reversibility_3yrs.png", dpi = 600)
 reversibility_combined <- grid.arrange(reversibility_2vacc_plot, reversibility_3vacc_plot, nrow = 1, ncol = 2)
 ggsave("pzp/plots/reversible_vs_years.png", plot = reversibility_combined, dpi = 600)
 
-# unnecessary now, look later what it is----
+# unnecessary now, check later what this is, i forgot----
 pbb <-  pzp %>%  filter(!is.na(Primer)& !is.na(Booster1) & !is.na(Booster2)
                         & is.na(Booster3) & is.na(Booster4))
 
@@ -341,6 +329,7 @@ pbb <- pbb %>% filter(years_of_data > 0)
 # 1- years of data
 years_model <- glm( birth_again ~ years_of_data, family = binomial, data = reversibility_data)
 summary(years_model)
+# + - the more years, the more likely it is to be true (0/1 in R)
 # more likely to be false if fewer years of data, makes sense
 
 # 2 - age at primer
@@ -370,7 +359,7 @@ reversibility_data <- mutate(reversibility_data,
                                which_vaccines == 3 ~ as.numeric((date_birth_again - Booster2) /365)))
 
 # average for everyone 
-mean(reversibility_data$time_to_foal, na.rm = TRUE)
+mean(reversibility_data$time_to_foal, na.rm = TRUE) # 1.5 years after last vaccine
 # ok, so some seem to come back because vaccination was not efficient in the first place.
 # they give birth immediately after B2, which means P and B didnt work.
 
@@ -380,6 +369,7 @@ mean(reversibility_data$time_to_foal, na.rm = TRUE)
 
 # reversibility, standard treatment, stricter criteria ----
 
+# did they give birth again, after at least 1 infertile year?
 reversibility_data <- reversibility_data %>% 
   mutate(birth_again_strict = sapply(1:nrow(.), function(i) {
     row <- as.vector(unlist(select(.[i,], 11:20)))
@@ -387,10 +377,10 @@ reversibility_data <- reversibility_data %>%
     {Booster2[i] } 
     else if (which_vaccines[i] ==2) {Booster1[i]}
     else {NA}
-    any(row > (booster_value+545), na.rm = TRUE) 
+    any(row > (booster_value+545), na.rm = TRUE) }))
     # the recorded birth has to be at least 1.5 years after the last vaccine
     # this ensures that there was at least 1 infertile year after the last vaccine was received
-  }))
+  
 
 reversibility_data <- reversibility_data %>%
   mutate(birth_strict = as.Date(sapply(1:nrow(.), function(i) {
@@ -399,12 +389,11 @@ reversibility_data <- reversibility_data %>%
     else if (which_vaccines[i] == 2) 
     {Booster1[i]} 
     else { NA}
-    if (birth_again_strict[i]) {
-      return(min(row[!is.na(row) & row > (booster_value+545) ]))
-    } else {
-      return(NA)  # If birth_again is FALSE, return NA
-    }
-  }))) 
+    if (birth_again_strict[i]) 
+    {return(min(row[!is.na(row) & row > (booster_value+545) ]))} 
+    else {return(NA)}  }))) 
+    # If birth_again is FALSE, return NA
+  
 
 reversibility_min2yrs <- reversibility_data %>% 
   filter(years_of_data != 1)
@@ -436,8 +425,7 @@ reversibility_3vacc_strict <- reversibility_min2yrs %>% filter(which_vaccines ==
     guides(fill=guide_legend(title="Gave birth post-treatment"))+
     theme_classic()+
     # theme(legend.position = "none")+
-    scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9))
-)
+    scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9)))
 ggsave("pzp/plots/years_vs_reversibility_2yrs.png", dpi = 600)
 
 
@@ -459,6 +447,8 @@ ggsave("pzp/plots/years_vs_reversibility_2yrs.png", dpi = 600)
     geom_histogram(binwidth = 0.5))
 ggsave("pzp/plots/years_vs_reversibility_3yrs.png", dpi = 600)
 
+# trying to plot data based on time since treatment  ----
+
 reversibility_longer <- reversibility_3vacc_strict %>% 
   pivot_longer( cols= c(25:34), names_to = "Year_of_foal", values_to = "Pregnancy_status" )
 
@@ -470,7 +460,7 @@ reversibility_longer <- reversibility_longer %>%
 (reversibility_summary_attempt <- reversibility_longer %>% 
     group_by(Year_of_foal, Pregnancy_status ) %>% 
     summarise(count = sum(!is.na(Pregnancy_status))))
-View(reversibility_summary_attempt)
+
 reversibility_summary_attempt <- reversibility_summary_attempt %>% 
   drop_na() %>% 
   filter(Pregnancy_status != "OUT") %>% 
@@ -479,10 +469,10 @@ reversibility_summary_attempt <- reversibility_summary_attempt %>%
 # try excluding those who were treated again
 reversibility_longer <- reversibility_longer %>%
   mutate(Year_of_foal = as.numeric(str_extract(Year_of_foal, "\\d+")))
-# redo calculations as i am not sure
+# redo calculations as i am not sure - ??
 
 reversibility_longer <- reversibility_longer %>%
-  filter(is.na(Primer_again) | (Year_of_foal - 1) <= (as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y"))))
+  filter(is.na(Primer_again) | (Year_of_foal + 1) < (as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y"))))
 
 # an attempt at plot but i dont acc need the summary for this...
 (plot_by_year <- ggplot(reversibility_longer,
@@ -511,6 +501,9 @@ reversibility_longer_percent <- reversibility_longer %>%
     scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
     scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
     theme_classic())
+# but have to somehow 1) add sample size
+# b) make it clear that for some horses we simply do not have the data for 5 etc years,
+# so it might be a false impression that they do not come back.
 
 # ok, but also: if they got primer again, exclude them from the years after they got the P again.
 # maybe if the date recorded for something is later than the p + years of data then exclude? 
@@ -543,9 +536,8 @@ reversibility_summary_attempt <- reversibility_summary_attempt %>%
 
 # percentage attempt 
 
-
 # Compute proportions within each year
-reversibility_longer_percent <- reversibility_longer %>%
+reversibility_longer_percent_2vacc <- reversibility_longer_2vacc %>%
   group_by(Year_of_foal) %>%
   mutate(total = n()) %>%
   group_by(Year_of_foal, Pregnancy_status) %>%
@@ -553,7 +545,7 @@ reversibility_longer_percent <- reversibility_longer %>%
   mutate(percent = count / sum(count) * 100)  # Compute percentages
 
 # Plot as 100% stacked bars
-(plot_by_year <- ggplot(reversibility_longer_percent, 
+(plot_by_year <- ggplot(reversibility_longer_percent_2vacc, 
                         aes(x = Year_of_foal, 
                             y = percent, 
                             fill = Pregnancy_status)) +
@@ -566,11 +558,11 @@ reversibility_longer_percent <- reversibility_longer %>%
 # maybe if the date recorded for something is later than the p + years of data then exclude? 
 # i dont knooow
 
-reversibility_longer <- reversibility_longer %>%
+reversibility_longer_2vacc <- reversibility_longer_2vacc %>%
   mutate(Year_of_foal = as.numeric(str_extract(Year_of_foal, "\\d+")))
 # redo calculations as i am not sure
 
-reversibility_longer <- reversibility_longer %>%
+reversibility_longer_2vacc <- reversibility_longer_2vacc %>%
   filter(is.na(Primer_again) | (Year_of_foal - 1) <= (as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y"))))
 
 
