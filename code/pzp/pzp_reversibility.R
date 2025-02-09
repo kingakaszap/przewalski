@@ -325,31 +325,33 @@ pbb <- pbb %>% filter(years_of_data > 0)
 # generally weird pattern.
 # Age? I looked at this already but in the other group
 
-# models on reversibility----
+# models on reversibility, currently with stricter data----
+
 # 1- years of data
-years_model <- glm( birth_again ~ years_of_data, family = binomial, data = reversibility_data)
+years_model <- glm( birth_again_strict ~ years_of_data, family = binomial, data = reversibility_data)
 summary(years_model)
 # + - the more years, the more likely it is to be true (0/1 in R)
 # more likely to be false if fewer years of data, makes sense
+# aic 87
 
 # 2 - age at primer
 reversibility_data <- mutate(reversibility_data, age_at_primer = as.numeric((Primer-birth_date)/365))
-age_model <- glm(birth_again ~age_at_primer, family = binomial, data = reversibility_data) 
+age_model <- glm(birth_again_strict ~age_at_primer, family = binomial, data = reversibility_data) 
 summary(age_model)
 
 # 3 - both
-both_model <- glm(birth_again ~ age_at_primer + years_of_data, family = binomial, data = reversibility_data) 
+both_model <- glm(birth_again_strict ~ age_at_primer + years_of_data, family = binomial, data = reversibility_data) 
 summary(both_model)
 # still better with explaining just with the years of data
 
 # 4 - years of data, no of vaccines
-vaccines_model <- glm(birth_again ~ years_of_data + which_vaccines, family = binomial, data = reversibility_data)     
+vaccines_model <- glm(birth_again_strict ~ years_of_data + which_vaccines, family = binomial, data = reversibility_data)     
 summary(vaccines_model)
 # not better
 
 # try a random effect - not ok
 # null 
-null_model <- glm(birth_again ~1, family = binomial, data = reversibility_data)
+null_model <- glm(birth_again_strict ~1, family = binomial, data = reversibility_data)
 summary(null_model) # good its higher aic
 
 # how long on average to first foal? From the end of treatment
@@ -364,8 +366,6 @@ mean(reversibility_data$time_to_foal, na.rm = TRUE) # 1.5 years after last vacci
 # they give birth immediately after B2, which means P and B didnt work.
 
 # so what if we change the condition? Not just birth after B2 / B1, but birth after at least 1 infertile year.
-
-
 
 # reversibility, standard treatment, stricter criteria ----
 
@@ -447,6 +447,15 @@ ggsave("pzp/plots/years_vs_reversibility_2yrs.png", dpi = 600)
     geom_histogram(binwidth = 0.5))
 ggsave("pzp/plots/years_vs_reversibility_3yrs.png", dpi = 600)
 
+reversibility_data <- mutate(reversibility_data,
+                             time_to_foal_strict = case_when(
+                               which_vaccines == 2 ~ as.numeric((birth_strict - Booster1)/365),
+                               which_vaccines == 3 ~ as.numeric((birth_strict - Booster2) /365)))
+
+# average for everyone 
+mean(reversibility_data$time_to_foal_strict, na.rm = TRUE)
+range(reversibility_data$time_to_foal_strict, na.rm = TRUE)
+sd(reversibility_data$time_to_foal_strict, na.rm = TRUE)
 # trying to plot data based on time since treatment  ----
 
 reversibility_longer <- reversibility_3vacc_strict %>% 
