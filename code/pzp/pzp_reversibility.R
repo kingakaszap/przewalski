@@ -424,7 +424,7 @@ reversibility_3vacc_strict <- reversibility_min2yrs %>% filter(which_vaccines ==
     
     guides(fill=guide_legend(title="Gave birth post-treatment"))+
     theme_classic()+
-    # theme(legend.position = "none")+
+     theme(legend.position = "none")+
     scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9)))
 ggsave("pzp/plots/years_vs_reversibility_2yrs.png", dpi = 600)
 
@@ -434,7 +434,7 @@ ggsave("pzp/plots/years_vs_reversibility_2yrs.png", dpi = 600)
     group_by(years_of_data) %>% 
     summarise(count = length (Name)))
 
-(reversibility_3vacc_plot <- ggplot(reversibility_3vacc_strict,
+(reversibility_3vacc_plot_strict <- ggplot(reversibility_3vacc_strict,
                                     aes(x = years_of_data, 
                                         fill = birth_again_strict))+
     scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No", "Yes"))+
@@ -447,6 +447,9 @@ ggsave("pzp/plots/years_vs_reversibility_2yrs.png", dpi = 600)
     geom_histogram(binwidth = 0.5))
 ggsave("pzp/plots/years_vs_reversibility_3yrs.png", dpi = 600)
 
+reversibility_combined_strict <- grid.arrange(reversibility_2vacc_plot_strict, reversibility_3vacc_plot_strict, nrow = 1, ncol = 2)
+ggsave("pzp/plots/reversible_vs_years_strict.png", plot = reversibility_combined_strict, dpi = 600)
+
 reversibility_data <- mutate(reversibility_data,
                              time_to_foal_strict = case_when(
                                which_vaccines == 2 ~ as.numeric((birth_strict - Booster1)/365),
@@ -457,10 +460,12 @@ mean(reversibility_data$time_to_foal_strict, na.rm = TRUE)
 range(reversibility_data$time_to_foal_strict, na.rm = TRUE)
 sd(reversibility_data$time_to_foal_strict, na.rm = TRUE)
 # trying to plot data based on time since treatment  ----
-
+# first - horses with 3 vaccines
+# new df: each year, each horse, pregnant or not (if present)
+# fix/ check year of foal:
+# is it the year after B2 in this case? or year after primer?
 reversibility_longer <- reversibility_3vacc_strict %>% 
   pivot_longer( cols= c(25:34), names_to = "Year_of_foal", values_to = "Pregnancy_status" )
-
 reversibility_longer <- reversibility_longer %>% 
   filter(!is.na(Pregnancy_status)) %>% 
   filter(Pregnancy_status != "NK") %>% 
@@ -469,11 +474,6 @@ reversibility_longer <- reversibility_longer %>%
 (reversibility_summary_attempt <- reversibility_longer %>% 
     group_by(Year_of_foal, Pregnancy_status ) %>% 
     summarise(count = sum(!is.na(Pregnancy_status))))
-
-reversibility_summary_attempt <- reversibility_summary_attempt %>% 
-  drop_na() %>% 
-  filter(Pregnancy_status != "OUT") %>% 
-  filter(Pregnancy_status != "NK")
 
 # try excluding those who were treated again
 reversibility_longer <- reversibility_longer %>%
@@ -487,6 +487,8 @@ reversibility_longer <- reversibility_longer %>%
 (plot_by_year <- ggplot(reversibility_longer,
                         aes(x = Year_of_foal, 
                             fill = Pregnancy_status))+
+    scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9))+
+    labs(x = "Year", y = "Number of individuals")+
     scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal"))+
     geom_histogram(stat = "count")+
     theme_classic())  
@@ -499,20 +501,32 @@ reversibility_longer_percent <- reversibility_longer %>%
   mutate(total = n()) %>%
   group_by(Year_of_foal, Pregnancy_status) %>%
   summarise(count = n(), .groups = "drop") %>%
-  mutate(percent = count / sum(count) * 100)  # Compute percentages
+  mutate(percent = 100 * count / sum(count))
+reversibility_longer_percent
 
-# Plot as 100% stacked bars
-(plot_by_year <- ggplot(reversibility_longer_percent, 
-                        aes(x = Year_of_foal, 
+reversibility_longer_percent$year_of_foal <- as.factor(reversibility_longer_percent$Year_of_foal)
+
+(plot_by_year_3vacc <- ggplot(reversibility_longer_percent, 
+                        aes(x = factor(Year_of_foal), 
                             y = percent, 
-                            fill = Pregnancy_status)) +
+                            fill = Pregnancy_status))+
+    scale_x_discrete(labels = c("1\n (62)", "2\n(58)", "3\n(41)", 
+                                "4\n (30)", "5\n (17)", "6\n (7)", 
+                                "7\n (3)", "8\n(1)", "9\n(1)"))+
+    # scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9))+
+    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n")+
     geom_col(position = "fill") +  # Fill makes bars 100% stacked
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
-    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
+    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("Not pregnant", "Pregnant")) +
+   # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
     theme_classic())
+
+ggsave("pzp/plots/returns_in_each_year_3vacc.png", dpi = 600)
 # but have to somehow 1) add sample size
 # b) make it clear that for some horses we simply do not have the data for 5 etc years,
 # so it might be a false impression that they do not come back.
+# AND ALSO: check what was the deal with those who got B3 and B4 BEFORE they got it
+# or add that they were treated again but maybe were the ones for whom
+# treatment was more reversible.
 
 # ok, but also: if they got primer again, exclude them from the years after they got the P again.
 # maybe if the date recorded for something is later than the p + years of data then exclude? 
@@ -539,7 +553,7 @@ reversibility_summary_attempt <- reversibility_summary_attempt %>%
 (plot_by_year <- ggplot(reversibility_longer_2vacc,
                         aes(x = Year_of_foal, 
                             fill = Pregnancy_status))+
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal"))+
+    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("Not pregnant", "Pregnant"))+
     geom_histogram(stat = "count")+
     theme_classic())  
 
@@ -553,15 +567,24 @@ reversibility_longer_percent_2vacc <- reversibility_longer_2vacc %>%
   summarise(count = n(), .groups = "drop") %>%
   mutate(percent = count / sum(count) * 100)  # Compute percentages
 
+reversibility_longer_percent_2vacc$Year_of_foal <- as.factor(reversibility_longer_percent_2vacc$Year_of_foal)
+
 # Plot as 100% stacked bars
-(plot_by_year <- ggplot(reversibility_longer_percent_2vacc, 
+(plot_by_year_2vacc <- ggplot(reversibility_longer_percent_2vacc, 
                         aes(x = Year_of_foal, 
                             y = percent, 
                             fill = Pregnancy_status)) +
+    scale_x_discrete(labels = c("1\n (20)", "2\n(18)", "3\n(15)", 
+                                "4\n (12)", "5\n (8)", "6\n (8)", 
+                                "7\n (5)", "8\n(1)", "9\n(1)"))+
     geom_col(position = "fill") +  # Fill makes bars 100% stacked
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
-    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
+    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n")+
+    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("Not pregnant", "Pregnant")) +
+    # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
     theme_classic())
+
+ggsave("pzp/plots/returns_in_each_year_2vacc.png", dpi = 600)
+
 
 # ok, but also: if they got primer again, exclude them from the years after they got the P again.
 # maybe if the date recorded for something is later than the p + years of data then exclude? 
@@ -579,3 +602,45 @@ reversibility_longer_2vacc <- reversibility_longer_2vacc %>%
 
 
 
+
+# horses w more than 3 vaccines----
+irregular_treatment <- pzp %>% filter(!is.na(Primer) &
+                                        !is.na(Booster1)&
+                                        !is.na(Booster2) ) %>% 
+ filter (!is.na(Booster3) | (!is.na(Booster4)))
+nrow(irregular_treatment)  
+
+reversibility_longer_irregular <- irregular_treatment %>% 
+  pivot_longer( cols= c(30:39), names_to = "Year_of_foal", values_to = "Pregnancy_status" )
+reversibility_longer_irregular <- reversibility_longer_irregular %>% 
+  filter(!is.na(Pregnancy_status)) %>% 
+  filter(Pregnancy_status != "NK") %>% 
+  filter(Pregnancy_status != "OUT")
+
+reversibility_longer_irregular <- reversibility_longer_irregular %>%
+  mutate(Year_of_foal = as.numeric(str_extract(Year_of_foal, "\\d+")))
+
+reversibility_longer_irregular_percent <- reversibility_longer_irregular %>%
+  group_by(Year_of_foal) %>%
+  mutate(total = n()) %>%
+  group_by(Year_of_foal, Pregnancy_status) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  mutate(percent = 100 * count / sum(count))
+reversibility_longer_irregular_percent
+
+reversibility_longer_irregular_percent$year_of_foal <- as.factor(reversibility_longer_irregular_percent$Year_of_foal)
+
+(plot_by_year_irregular <- ggplot(reversibility_longer_irregular_percent, 
+                              aes(x = factor(Year_of_foal), 
+                                  y = percent, 
+                                  fill = Pregnancy_status))+
+    scale_x_discrete(labels = c("1\n (19)", "2\n(18)", "3\n(20)", 
+                                "4\n (17)", "5\n (13)", "6\n (12)", 
+                                "7\n (9)", "8\n(7)", "9\n(2)"))+
+    # scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9))+
+    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n")+
+    geom_col(position = "fill") +  # Fill makes bars 100% stacked
+    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("Not pregnant", "Pregnant")) +
+    # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
+    theme_classic())
+ggsave("pzp/plots/returns_per_year_irregular.png", dpi = 600)
