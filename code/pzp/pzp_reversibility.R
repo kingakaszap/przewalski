@@ -514,9 +514,9 @@ reversibility_longer_percent$year_of_foal <- as.factor(reversibility_longer_perc
                                 "4\n (30)", "5\n (17)", "6\n (7)", 
                                 "7\n (3)", "8\n(1)", "9\n(1)"))+
     # scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9))+
-    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n")+
+    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n", fill = "Status")+
     geom_col(position = "fill") +  # Fill makes bars 100% stacked
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("Not pregnant", "Pregnant")) +
+    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
    # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
     theme_classic())
 
@@ -578,8 +578,8 @@ reversibility_longer_percent_2vacc$Year_of_foal <- as.factor(reversibility_longe
                                 "4\n (12)", "5\n (8)", "6\n (8)", 
                                 "7\n (5)", "8\n(1)", "9\n(1)"))+
     geom_col(position = "fill") +  # Fill makes bars 100% stacked
-    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n")+
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("Not pregnant", "Pregnant")) +
+    labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n", fill = "Status")+
+    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
     # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
     theme_classic())
 
@@ -644,3 +644,10 @@ reversibility_longer_irregular_percent$year_of_foal <- as.factor(reversibility_l
     # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
     theme_classic())
 ggsave("pzp/plots/returns_per_year_irregular.png", dpi = 600)
+
+# look at a 4 year period after treatment
+fouryear_subset <- reversibility_data %>% 
+  filter(!is.na(Booster2)) %>% 
+  filter(!is.na(Foal_Status_P_5yr) & Foal_Status_P_5yr != "NK" &  Foal_Status_P_5yr != "OUT" )
+nrow(fouryear_subset)
+View(fouryear_subset)
