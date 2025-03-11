@@ -501,3 +501,206 @@ exact_y1$age_at_primer <- as.numeric(exact_y1$Primer-exact_y1$birth_date)
 mean(exact_y1$age_at_primer)/365 # 7.7
 year1$age_at_primer <- as.numeric(year1$Primer-year1$birth_date)
 mean(year1$age_at_primer)/365 # 6
+
+# small timeline graph ----
+# x axis: year, y = proprtion of treated mares foaling 
+timeline_data <- read_excel("data/pzp/efficacy_smalldata.xlsx")
+str(timeline_data)
+timeline_data <- timeline_data %>%  rename( notfoaling = 'not foaling' )
+?rename
+timeline_data <- timeline_data %>% mutate(
+  total = foaling + notfoaling,
+  foaling_proportion = foaling/total,
+  notfoaling_proportion = notfoaling/total
+)
+
+(timeline_graph <- ggplot(timeline_data, aes(x = factor (year)))+
+  geom_col(aes(y = foaling_proportion, fill = "Foaling"), position = "dodge", alpha = 0.7)+
+  geom_col(aes(y = notfoaling_proportion, fill = "Not foaling"), position = "dodge", alpha = 0.7)+
+  geom_line(aes(y = efficacy/100, group = 1), color = "blue", size = 1)+
+    geom_point(aes(y = efficacy/100), color = "blue", size = 3)+
+    scale_y_continuous(
+      name = "Proportion of mares",
+      sec.axis = sec_axis(~. *100, name = "Efficacy (%)"))+
+      scale_fill_manual(values = c("Foaling " = "skyblue", "Not foaling" = "orange"))+
+                          theme_classic()
+    )
+
+# side by side bars
+# Load necessary libraries
+
+# Sample Data (Replace with your actual data)
+timeline_data <- data.frame(
+  year = 1:7,
+  foaling = c(18, 7, 4, 1, 1, 2, 0),
+  not_foaling = c(45, 41, 19, 15, 5, 3, 3),
+  efficacy = c(71, 84, 82.6, 93.75, 83, 60, 100)
+)
+
+# Compute proportions
+timeline_data <- timeline_data %>%
+  mutate(
+    foaling_proportion = foaling / (foaling + not_foaling),
+    notfoaling_proportion = not_foaling / (foaling + not_foaling)
+  )
+
+# Convert to long format for side-by-side bars
+timeline_long <- timeline_data %>%
+  pivot_longer(cols = c(foaling_proportion, notfoaling_proportion),
+               names_to = "category", values_to = "proportion")
+
+# Rename categories for better legend display
+timeline_long$category <- factor(timeline_long$category, 
+                                 levels = c("foaling_proportion", "notfoaling_proportion"),
+                                 labels = c("Foaling", "Not foaling"))
+
+# Create the plot
+timeline_graph <- ggplot() +
+  # Side-by-side bars using timeline_long
+  geom_col(data = timeline_long, aes(x = factor(year), y = proportion, fill = category), 
+           position = "dodge", alpha = 0.7) +
+  
+  # Efficacy line + points using timeline_data
+  geom_line(data = timeline_data, aes(x = factor(year), y = efficacy / 100, color = "Efficacy", group = 1), 
+             linewidth = 1) +
+  geom_point(data = timeline_data, aes(x = factor(year), color = "Efficacy",  y = efficacy / 100), 
+              size = 3) +
+  
+  # Custom colors
+  scale_fill_manual(values = c("Foaling" = "skyblue", "Not foaling" = "orange")) +
+  scale_color_manual(name = "Efficacy", values = c("Efficacy" = "blue")) +
+  labs (x = "\nYears after treatment started", y = "Proportion of mares\n" )+
+  theme_classic()+
+  theme(legend.title = element_blank())
+
+# Print the graph
+print(timeline_graph)
+
+ggsave("pzp/plots/yearly_efficacy_smalldata.png", dpi = 600)
+
+# Try to do this on all the data ! 
+
+# population number ----
+nagylista <- read_excel("data/nagylista.xls", 
+                        sheet = "Összes-All", col_types = c("text", 
+                                                            "text", "text", "text", "date", "text", 
+                                                            "text", "text", "text", "text", "text", 
+                                                            "text", "date", "text", "date", "text", 
+                                                            "text", "text", "text", "text", "date", 
+                                                            "text", "skip"))
+View(nagylista)
+nagylista <- nagylista %>%
+  mutate(Birth_year = as.numeric(format(as.Date(Date_of_birth), "%Y")),
+         Death_year = ifelse(is.na(Date_of_death), NA, as.numeric(format(as.Date(Date_of_death), "%Y"))))
+
+# Set Death_year to current year if NA (only for defining the range, not modifying the original data)
+nagylista$Death_year_temp <- ifelse(is.na(nagylista$Death_year), format(Sys.Date(), "%Y"), nagylista$Death_year)
+
+# Get valid year range
+min_year <- min(nagylista$Birth_year, na.rm = TRUE)
+max_year <- max(as.numeric(nagylista$Death_year_temp), na.rm = TRUE)
+
+# Generate the year sequence
+year_range <- seq(min_year, max_year)
+
+# Function to count horses alive in a given year
+get_population <- function(year) {
+  year <- as.numeric(year)
+  nagylista %>%
+    filter(Birth_year <= year & (is.na(Death_year) | Death_year > year)) %>%
+    summarise(Total_Horses = n(),
+              Males = sum(Gender == 1, na.rm = TRUE),
+              Females = sum(Gender == 2, na.rm = TRUE)) %>%
+    mutate(Year = year)
+}
+
+
+# Apply function to each year
+population_summary <- bind_rows(lapply(year_range, get_population))
+
+# View result
+print(population_summary)
+View(population_summary)
+# WRONG 
+
+
+# for the whole dataset, same thing as before 
+# but only need those who got P & B1& B2
+
+year1_sum <- pbb %>% filter (!is.na(Foal_Status_P_1yr) & Foal_Status_P_1yr != "NK"
+                             & Foal_Status_P_1yr != "OUT")
+year1_summary <- year1_sum %>% 
+  group_by(Foal_Status_P_1yr) %>% 
+  summarise(count = length(Name))
+year1_summary
+# NP 48, yes 19
+# this includes those who got vaccines late
+
+year2_sum <- pbb %>% filter (!is.na(Foal_Status_P_2yr) & Foal_Status_P_2yr != "NK"
+                             & Foal_Status_P_2yr != "OUT")
+year2_summary <- year2_sum %>% 
+  group_by(Foal_Status_P_2yr) %>% 
+  summarise(count = length(Name))
+year2_summary
+# np 58, yes 8
+
+year3_sum <- pbb %>% filter (!is.na(Foal_Status_P_3yr) & Foal_Status_P_3yr != "NK"
+                             & Foal_Status_P_3yr != "OUT")
+
+year3_summary <- year3_sum %>% 
+  group_by(Foal_Status_P_3yr) %>% 
+  summarise(count = length(Name))
+year3_summary
+# 41 np, yes 11
+
+year4_sum <- pbb %>% filter (!is.na(Foal_Status_P_4yr) & Foal_Status_P_4yr != "NK"
+                             & Foal_Status_P_4yr != "OUT")
+year4_summary <- year4_sum %>% 
+  group_by(Foal_Status_P_4yr) %>% 
+  summarise(count = length(Name))
+year4_summary
+# 32 np, yes 4
+
+year5_sum <- pbb %>% filter (!is.na(Foal_Status_P_5yr) & Foal_Status_P_5yr != "NK"
+                             & Foal_Status_P_5yr != "OUT")
+year5_summary <- year5_sum %>% 
+  group_by(Foal_Status_P_5yr) %>% 
+  summarise(count = length(Name))
+year5_summary
+# 13 np, yes 5
+
+year6_sum <- pbb %>% filter (!is.na(Foal_Status_P_6yr) & Foal_Status_P_6yr != "NK"
+                             & Foal_Status_P_6yr != "OUT")
+year6_summary <- year6_sum %>% 
+  group_by(Foal_Status_P_6yr) %>% 
+  summarise(count = length(Name))
+year6_summary
+# 7 np, yes 5
+
+year7_sum <- pbb %>% filter (!is.na(Foal_Status_P_7yr) & Foal_Status_P_7yr != "NK"
+                             & Foal_Status_P_7yr != "OUT")
+year7_summary <- year7_sum %>% 
+  group_by(Foal_Status_P_7yr) %>% 
+  summarise(count = length(Name))
+year7_summary
+# 8 np, yes 1
+
+year8_sum <- pbb %>% filter (!is.na(Foal_Status_P_8yr) & Foal_Status_P_8yr != "NK"
+                             & Foal_Status_P_8yr != "OUT")
+year8_summary <- year8_sum %>% 
+  group_by(Foal_Status_P_8yr) %>% 
+  summarise(count = length(Name))
+year8_summary
+# check if they were treated again tho INDIVIDUALLY !!!
+# they are not in reversibility data
+
+# 5 np, yes 1
+
+year9_sum <- pbb %>% filter (!is.na(Foal_Status_P_9yr) & Foal_Status_P_9yr != "NK"
+                             & Foal_Status_P_9yr != "OUT")
+year9_summary <- year9_sum %>% 
+  group_by(Foal_Status_P_9yr) %>% 
+  summarise(count = length(Name))
+year9_summary
+
+# 3 np
