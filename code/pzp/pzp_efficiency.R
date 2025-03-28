@@ -5,6 +5,7 @@ library(readxl)
 library(ggrepel)
 library(lubridate)
 library(gridExtra)
+library(RColorBrewer)
 
 pzp <- read_excel("data/pzp/pzpdata.xlsx")
 pzp <- mutate_if(pzp, is.POSIXct, as.Date)
@@ -504,44 +505,37 @@ mean(year1$age_at_primer)/365 # 6
 
 # small timeline graph ----
 # x axis: year, y = proprtion of treated mares foaling 
-timeline_data <- read_excel("data/pzp/efficacy_smalldata.xlsx")
+timeline_data <- read_excel("data/pzp/efficacy_allhorses.xlsx")
 str(timeline_data)
 timeline_data <- timeline_data %>%  rename( notfoaling = 'not foaling' )
 ?rename
 timeline_data <- timeline_data %>% mutate(
-  total = foaling + notfoaling,
-  foaling_proportion = foaling/total,
-  notfoaling_proportion = notfoaling/total
+  total = Foaling + Not_foaling,
+  foaling_proportion = Foaling/total,
+  notfoaling_proportion = Not_foaling/total
 )
 
-(timeline_graph <- ggplot(timeline_data, aes(x = factor (year)))+
+(timeline_graph <- ggplot(timeline_data, aes(x = factor (Year)))+
   geom_col(aes(y = foaling_proportion, fill = "Foaling"), position = "dodge", alpha = 0.7)+
   geom_col(aes(y = notfoaling_proportion, fill = "Not foaling"), position = "dodge", alpha = 0.7)+
-  geom_line(aes(y = efficacy/100, group = 1), color = "blue", size = 1)+
-    geom_point(aes(y = efficacy/100), color = "blue", size = 3)+
+  geom_line(aes(y = notfoaling_proportion, group = 1), color = "#4F4F4F", size = 1)+
+    geom_point(aes(y = notfoaling_proportion), color = "#4F4F4F", size = 3)+
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +
     scale_y_continuous(
-      name = "Proportion of mares",
-      sec.axis = sec_axis(~. *100, name = "Efficacy (%)"))+
+      name = "Proportion of mares")+
       scale_fill_manual(values = c("Foaling " = "skyblue", "Not foaling" = "orange"))+
                           theme_classic()
     )
 
 # side by side bars
-# Load necessary libraries
 
-# Sample Data (Replace with your actual data)
-timeline_data <- data.frame(
-  year = 1:7,
-  foaling = c(18, 7, 4, 1, 1, 2, 0),
-  not_foaling = c(45, 41, 19, 15, 5, 3, 3),
-  efficacy = c(71, 84, 82.6, 93.75, 83, 60, 100)
-)
+timeline_data <- read_excel("data/pzp/efficacy_allhorses.xlsx")
 
 # Compute proportions
 timeline_data <- timeline_data %>%
   mutate(
-    foaling_proportion = foaling / (foaling + not_foaling),
-    notfoaling_proportion = not_foaling / (foaling + not_foaling)
+    foaling_proportion = Foaling / (Foaling + Not_foaling),
+    notfoaling_proportion = Not_foaling / (Foaling + Not_foaling)
   )
 
 # Convert to long format for side-by-side bars
@@ -554,32 +548,90 @@ timeline_long$category <- factor(timeline_long$category,
                                  levels = c("foaling_proportion", "notfoaling_proportion"),
                                  labels = c("Foaling", "Not foaling"))
 
+timeline_long <- timeline_long %>%
+  mutate(proportion = proportion * 100)
+
+timeline_data <- timeline_data %>%
+  mutate(notfoaling_proportion = notfoaling_proportion * 100)
+
+
 # Create the plot
 timeline_graph <- ggplot() +
   # Side-by-side bars using timeline_long
-  geom_col(data = timeline_long, aes(x = factor(year), y = proportion, fill = category), 
+  geom_col(data = timeline_long, aes(x = factor(Year), y = proportion, fill = category), 
            position = "dodge", alpha = 0.7) +
   
   # Efficacy line + points using timeline_data
-  geom_line(data = timeline_data, aes(x = factor(year), y = efficacy / 100, color = "Efficacy", group = 1), 
-             linewidth = 1) +
-  geom_point(data = timeline_data, aes(x = factor(year), color = "Efficacy",  y = efficacy / 100), 
-              size = 3) +
-  
-  # Custom colors
+  geom_line(data = timeline_data, aes(x = factor(Year), y = notfoaling_proportion, color = "Efficacy", group = 1), 
+             linewidth = 0.7) +
+  geom_point(data = timeline_data, aes(x = factor(Year), color = "Efficacy",  y = notfoaling_proportion), 
+              size = 2.5) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_x_discrete(labels = c("1\n (67)", "2\n(61)", "3\n(48)", 
+                              "4\n (30)", "5\n (17)", "6\n (12)", 
+                              "7\n (4)", "8\n(3)", "9\n(1)"))+
   scale_fill_manual(values = c("Foaling" = "skyblue", "Not foaling" = "orange")) +
-  scale_color_manual(name = "Efficacy", values = c("Efficacy" = "blue")) +
-  labs (x = "\nYears after treatment started", y = "Proportion of mares\n" )+
+  scale_color_manual(name = "Efficacy", values = c("Efficacy" = "#4F4F4F")) +
+  labs (x = "\nYears after treatment started (Sample size)", y = "Proportion of mares\n" )+
   theme_classic()+
   theme(legend.title = element_blank())
 
-# Print the graph
+
 print(timeline_graph)
 
-ggsave("pzp/plots/yearly_efficacy_smalldata.png", dpi = 600)
+ggsave("pzp/plots/yearly_efficacy_smalldata_9years.png", dpi = 600)
 
-# Try to do this on all the data ! 
+timeline_data_1b <- read_excel("data/pzp/efficacy_allhorses.xlsx", sheet = 2)
 
+# Compute proportions
+timeline_data_1b <- timeline_data_1b %>%
+  mutate(
+    foaling_proportion = Foaling / (Foaling + Not_foaling),
+    notfoaling_proportion = Not_foaling / (Foaling + Not_foaling)
+  )
+
+# Convert to long format for side-by-side bars
+timeline_long_1b <- timeline_data_1b %>%
+  pivot_longer(cols = c(foaling_proportion, notfoaling_proportion),
+               names_to = "category", values_to = "proportion")
+
+# Rename categories for better legend display
+timeline_long_1b$category <- factor(timeline_long_1b$category, 
+                                 levels = c("foaling_proportion", "notfoaling_proportion"),
+                                 labels = c("Foaling", "Not foaling"))
+
+timeline_long_1b <- timeline_long_1b %>%
+  mutate(proportion = proportion * 100)
+timeline_data_1b <- timeline_data_1b %>%
+  mutate(notfoaling_proportion = notfoaling_proportion * 100)
+
+# Create the plot
+timeline_graph_1b <- ggplot() +
+  # Side-by-side bars using timeline_long
+  geom_col(data = timeline_long_1b, aes(x = factor(Year), y = proportion, fill = category), 
+           position = "dodge", alpha = 0.7) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  # Efficacy line + points using timeline_data
+  geom_line(data = timeline_data_1b, aes(x = factor(Year), y = notfoaling_proportion, color = "Efficacy", group = 1), 
+            linewidth = 0.7) +
+  geom_point(data = timeline_data_1b, aes(x = factor(Year), color = "Efficacy",  y = notfoaling_proportion), 
+             size = 2.5) +
+  scale_x_discrete(labels = c("1\n (20)", "2\n(17)", "3\n(15)", 
+                              "4\n (11)", "5\n (7)", "6\n (6)", 
+                              "7\n (2)", "8\n(1)", "9\n(1)"))+
+  
+  scale_fill_manual(values = c("Foaling" = "skyblue", "Not foaling" = "orange")) +
+  scale_color_manual(name = "Efficacy", values = c("Efficacy" = "#4F4F4F")) +
+  labs (x = "\nYears after treatment started", y = "Proportion of mares\n" )+
+  theme_classic()+
+  theme(legend.title = element_blank())
+c("#4F4F4F", "#474747", "#7A7A7A")
+
+print(timeline_graph_1b)
+
+ggsave("pzp/plots/yearly_efficacy_smalldata_1booster.png", dpi = 600)
+
+# try to do the same (with efficacy line) with stacked bars also!!
 # population number ----
 nagylista <- read_excel("data/nagylista.xls", 
                         sheet = "Összes-All", col_types = c("text", 
@@ -626,7 +678,11 @@ View(population_summary)
 
 # for the whole dataset, same thing as before 
 # but only need those who got P & B1& B2
+pbb <- pzp %>%  filter (!is.na(Primer)& !is.na(Booster1) & !is.na(Booster2)
+                        & is.na (Booster3) & is.na (Booster4))
 
+pbb <- pbb %>% mutate(years_between_primers = round((as.numeric(Primer_again-Primer))/365))
+nrow(pbb)
 year1_sum <- pbb %>% filter (!is.na(Foal_Status_P_1yr) & Foal_Status_P_1yr != "NK"
                              & Foal_Status_P_1yr != "OUT")
 year1_summary <- year1_sum %>% 
@@ -637,60 +693,93 @@ year1_summary
 # this includes those who got vaccines late
 
 year2_sum <- pbb %>% filter (!is.na(Foal_Status_P_2yr) & Foal_Status_P_2yr != "NK"
-                             & Foal_Status_P_2yr != "OUT")
+                             & Foal_Status_P_2yr != "OUT" 
+                              & (is.na (years_between_primers) | years_between_primers != 2) )
 year2_summary <- year2_sum %>% 
   group_by(Foal_Status_P_2yr) %>% 
   summarise(count = length(Name))
 year2_summary
-# np 58, yes 8
+# np 53, yes 8
 
 year3_sum <- pbb %>% filter (!is.na(Foal_Status_P_3yr) & Foal_Status_P_3yr != "NK"
-                             & Foal_Status_P_3yr != "OUT")
+                             & Foal_Status_P_3yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 3))
 
 year3_summary <- year3_sum %>% 
   group_by(Foal_Status_P_3yr) %>% 
   summarise(count = length(Name))
 year3_summary
-# 41 np, yes 11
+# 40 np, yes 8
 
 year4_sum <- pbb %>% filter (!is.na(Foal_Status_P_4yr) & Foal_Status_P_4yr != "NK"
-                             & Foal_Status_P_4yr != "OUT")
+                             & Foal_Status_P_4yr != "OUT"
+                               & (is.na (years_between_primers) | years_between_primers > 4))
 year4_summary <- year4_sum %>% 
   group_by(Foal_Status_P_4yr) %>% 
   summarise(count = length(Name))
 year4_summary
-# 32 np, yes 4
+# 27 np, yes 3
 
 year5_sum <- pbb %>% filter (!is.na(Foal_Status_P_5yr) & Foal_Status_P_5yr != "NK"
-                             & Foal_Status_P_5yr != "OUT")
+                             & Foal_Status_P_5yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 5 )
+                             )
 year5_summary <- year5_sum %>% 
   group_by(Foal_Status_P_5yr) %>% 
   summarise(count = length(Name))
 year5_summary
-# 13 np, yes 5
+# 12 np, yes 5
 
 year6_sum <- pbb %>% filter (!is.na(Foal_Status_P_6yr) & Foal_Status_P_6yr != "NK"
-                             & Foal_Status_P_6yr != "OUT")
+                             & Foal_Status_P_6yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 6))
 year6_summary <- year6_sum %>% 
   group_by(Foal_Status_P_6yr) %>% 
   summarise(count = length(Name))
 year6_summary
+View(year6_sum)
 # 7 np, yes 5
 
 year7_sum <- pbb %>% filter (!is.na(Foal_Status_P_7yr) & Foal_Status_P_7yr != "NK"
-                             & Foal_Status_P_7yr != "OUT")
+                             & Foal_Status_P_7yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 7))
 year7_summary <- year7_sum %>% 
   group_by(Foal_Status_P_7yr) %>% 
   summarise(count = length(Name))
 year7_summary
-# 8 np, yes 1
+View(year7_sum)
+# 4 np 
 
 year8_sum <- pbb %>% filter (!is.na(Foal_Status_P_8yr) & Foal_Status_P_8yr != "NK"
-                             & Foal_Status_P_8yr != "OUT")
+                             & Foal_Status_P_8yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 8))
 year8_summary <- year8_sum %>% 
   group_by(Foal_Status_P_8yr) %>% 
   summarise(count = length(Name))
 year8_summary
+View(year8_sum)
+# np 2, yes 1
+
+year9_sum <- pbb %>% filter (!is.na(Foal_Status_P_9yr) & Foal_Status_P_9yr != "NK"
+                             & Foal_Status_P_9yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 9))
+year9_summary <- year9_sum %>% 
+  group_by(Foal_Status_P_9yr) %>% 
+  summarise(count = length(Name))
+year9_summary
+# 1, np
+View(year9_sum)
+
+year10_sum <- pbb %>% filter (!is.na(Foal_Status_P_10yr) & Foal_Status_P_10yr != "NK"
+                             & Foal_Status_P_10yr != "OUT"
+                             & (is.na (years_between_primers) | years_between_primers > 10))
+year10_summary <- year10_sum %>% 
+  group_by(Foal_Status_P_10yr) %>% 
+  summarise(count = length(Name))
+year10_summary
+# no horses
+
+
 # check if they were treated again tho INDIVIDUALLY !!!
 # they are not in reversibility data
 
@@ -704,3 +793,84 @@ year9_summary <- year9_sum %>%
 year9_summary
 
 # 3 np
+
+
+# Create the dataset
+foaling_data <- data.frame(
+  Year = factor(1:9),  # Keep Year as a factor for discrete x-axis
+  Foaling = c(19, 8, 8, 3, 5, 5, 0, 1, 0),
+  Not_foaling = c(48, 53, 40, 27, 12, 7, 4, 2, 1)
+)
+
+# Compute proportions
+foaling_data$Total <- foaling_data$Foaling + foaling_data$Not_foaling
+foaling_data$Foaling_prop <- foaling_data$Foaling / foaling_data$Total
+foaling_data$Not_foaling_prop <- foaling_data$Not_foaling / foaling_data$Total
+
+# Reshape data into long format for ggplot (necessary for stacked bars)
+foaling_long <- foaling_data %>%
+  tidyr::pivot_longer(cols = c(Foaling_prop, Not_foaling_prop), 
+                      names_to = "Pregnancy_status", 
+                      values_to = "percent")
+
+# Rename levels for clarity
+foaling_long$Pregnancy_status <- factor(foaling_long$Pregnancy_status, 
+                                        levels = c("Not_foaling_prop", "Foaling_prop"),
+                                        labels = c("Not foaling", "Foaling"))
+
+# Define custom x-axis labels with sample sizes
+custom_labels <- paste0(foaling_data$Year, "\n(", foaling_data$Total, ")")
+
+# Plot
+ggplot(foaling_long, aes(x = Year, y = percent, fill = Pregnancy_status)) +
+  geom_col(position = "stack") +  # Stacked bars with calculated proportions
+  scale_x_discrete(labels = custom_labels) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to % format
+  labs(x = "\nYear (sample size)", 
+       y = "% of all individuals with data for each year\n", 
+       fill = "Status") +
+  scale_fill_manual(values = c("#1C86EE", "#CD6600")) +  # Matching color scheme
+  theme_classic()
+
+
+# numbers of horse and cattle
+
+letszam <- read_excel("data/letszam.xlsx")
+
+letszam_long <- pivot_longer(letszam, cols = c("horses", "cattle"), names_to = "species", values_to = "count")
+(letszam_plot <- ggplot(letszam_long, aes(x = year, y = count, color = species, group = species)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "\nYear", y = "Count\n") +
+  theme_classic()+
+  theme(legend.title = element_blank()))
+
+
+letszam_long <- pivot_longer(letszam, cols = c("horses", "births", "deaths"), names_to = "data_type", values_to = "count")
+(letszam_justhorses <- ggplot (letszam_long, aes (x = year, y = count, color = data_type, group = data_type))+
+  geom_line()+
+  geom_point()+
+  labs (x = "\nYear", y = "Count\n")+
+    theme_classic()+
+    theme(legend.title = element_blank()))
+  
+letszam_long <- pivot_longer(letszam, cols = c("horses", "births"), names_to = "data_type", values_to = "count")
+
+(letszam_justhorses <- ggplot (letszam_long, aes (x = year, y = count, color = data_type, group = data_type))+
+  geom_line(size = 0.8)+
+  geom_point(size = 2.5)+
+  labs (x = "\nYear", y = "Number of animals\n")+
+  theme_classic()+
+    scale_color_manual(values = c("horses" = "#3B9AB2",   
+                                  "births" = "#CD0000",   
+                                  "deaths" = "#666666")) + 
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        axis.title = element_text(size = 13),
+        axis.text = element_text(size = 12)))
+ggsave("pzp/plots/headcounts.png", dpi = 600)
+c("#666666", "#EE7621", "#104E8B")
+c("#FF7F00", "#EE2C2C", "#CD0000")
+
+
+# years / animals treated

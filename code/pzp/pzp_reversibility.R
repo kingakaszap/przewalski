@@ -466,10 +466,21 @@ sd(reversibility_data$time_to_foal_strict, na.rm = TRUE)
 # is it the year after B2 in this case? or year after primer?
 reversibility_longer <- reversibility_3vacc_strict %>% 
   pivot_longer( cols= c(25:34), names_to = "Year_of_foal", values_to = "Pregnancy_status" )
+#reversibility_longer <- reversibility_longer %>% 
+#  filter(!is.na(Pregnancy_status)) %>% 
+#  filter(Pregnancy_status != "NK") %>% 
+#  filter(Pregnancy_status != "OUT")
+nrow
+
 reversibility_longer <- reversibility_longer %>% 
   filter(!is.na(Pregnancy_status)) %>% 
-  filter(Pregnancy_status != "NK") %>% 
-  filter(Pregnancy_status != "OUT")
+  filter(Pregnancy_status != "OUT" ) %>% 
+  filter(Pregnancy_status != "NK")
+
+# double check year 6
+(year6_find_the_issue <- reversibility_3vacc_strict %>% 
+  group_by(Foal_Status_P_6yr) %>% 
+  summarise(count = length(Name)))
 
 (reversibility_summary_attempt <- reversibility_longer %>% 
     group_by(Year_of_foal, Pregnancy_status ) %>% 
@@ -480,8 +491,18 @@ reversibility_longer <- reversibility_longer %>%
   mutate(Year_of_foal = as.numeric(str_extract(Year_of_foal, "\\d+")))
 # redo calculations as i am not sure - ??
 
-reversibility_longer <- reversibility_longer %>%
-  filter(is.na(Primer_again) | (Year_of_foal + 1) < (as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y"))))
+# reversibility_longer <- reversibility_longer %>%
+#  filter(is.na(Primer_again) | (Year_of_foal ) < (as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y"))))
+# this seems to cause the issue - but I dont understand why. 
+
+reversibility_longer <- reversibility_longer %>% 
+  mutate (years_between_primer_and_p2 = ifelse(is.na(Primer_again), NA, 
+         (as.numeric(format(Primer_again, "%Y"))) - (as.numeric(format(Primer, "%Y"))))
+         )
+
+reversibility_longer <- reversibility_longer %>% 
+  filter ((is.na (Primer_again)) | (!is.na(Primer_again) & Year_of_foal < years_between_primer_and_p2))
+
 
 # an attempt at plot but i dont acc need the summary for this...
 (plot_by_year <- ggplot(reversibility_longer,
@@ -510,15 +531,17 @@ reversibility_longer_percent$year_of_foal <- as.factor(reversibility_longer_perc
                         aes(x = factor(Year_of_foal), 
                             y = percent, 
                             fill = Pregnancy_status))+
-    scale_x_discrete(labels = c("1\n (62)", "2\n(58)", "3\n(41)", 
-                                "4\n (30)", "5\n (17)", "6\n (7)", 
-                                "7\n (3)", "8\n(1)", "9\n(1)"))+
+    scale_x_discrete(labels = c("1\n (67)", "2\n(61)", "3\n(48)", 
+                                "4\n (30)", "5\n (17)", "6\n (12)", 
+                                "7\n (4)", "8\n(3)", "9\n(1)"))+
     # scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9))+
     labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n", fill = "Status")+
     geom_col(position = "fill") +  # Fill makes bars 100% stacked
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
+    scale_fill_manual(values = c("orange", "skyblue"), labels = c("Not foaling", "Foaling")) +
    # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
-    theme_classic())
+    theme_classic()+
+    theme(legend.title = element_blank()))
+
 
 ggsave("pzp/plots/returns_in_each_year_3vacc.png", dpi = 600)
 # but have to somehow 1) add sample size
@@ -539,6 +562,15 @@ reversibility_longer_2vacc <- reversibility_longer_2vacc %>%
   filter(!is.na(Pregnancy_status)) %>% 
   filter(Pregnancy_status != "NK") %>% 
   filter(Pregnancy_status != "OUT")
+
+reversibility_longer_2vacc <- reversibility_longer_2vacc %>% 
+  mutate (years_between_primer_and_p2 = ifelse(is.na(Primer_again), NA, 
+                                               (as.numeric(format(Primer_again, "%Y"))) - (as.numeric(format(Primer, "%Y"))))
+  )
+
+reversibility_longer_2vacc <- reversibility_longer_2vacc %>% 
+  filter ((is.na (Primer_again)) | (!is.na(Primer_again) & Year_of_foal < years_between_primer_and_p2))
+
 
 (reversibility_summary_attempt <- reversibility_longer %>% 
     group_by(Year_of_foal, Pregnancy_status ) %>% 
@@ -568,20 +600,22 @@ reversibility_longer_percent_2vacc <- reversibility_longer_2vacc %>%
   mutate(percent = count / sum(count) * 100)  # Compute percentages
 
 reversibility_longer_percent_2vacc$Year_of_foal <- as.factor(reversibility_longer_percent_2vacc$Year_of_foal)
+reversibility_longer_percent_2vacc
 
 # Plot as 100% stacked bars
 (plot_by_year_2vacc <- ggplot(reversibility_longer_percent_2vacc, 
                         aes(x = Year_of_foal, 
                             y = percent, 
                             fill = Pregnancy_status)) +
-    scale_x_discrete(labels = c("1\n (20)", "2\n(18)", "3\n(15)", 
-                                "4\n (12)", "5\n (8)", "6\n (8)", 
-                                "7\n (5)", "8\n(1)", "9\n(1)"))+
+    scale_x_discrete(labels = c("1\n (20)", "2\n(17)", "3\n(15)", 
+                                "4\n (11)", "5\n (7)", "6\n (6)", 
+                                "7\n (2)", "8\n(1)", "9\n(1)"))+
     geom_col(position = "fill") +  # Fill makes bars 100% stacked
     labs(x = "\nYear (sample size)", y = "% of all individuals with data for each year\n", fill = "Status")+
-    scale_fill_manual(values = c("#CD6600", "#1C86EE"), labels = c("No foal", "Foal")) +
+    scale_fill_manual(values = c("orange", "skyblue"), labels = c("Not foaling", "Foaling")) +
     # scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert to percentage format
-    theme_classic())
+    theme_classic()+
+    theme(legend.title = element_blank()))
 
 ggsave("pzp/plots/returns_in_each_year_2vacc.png", dpi = 600)
 
