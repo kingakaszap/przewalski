@@ -685,3 +685,20 @@ fouryear_subset <- reversibility_data %>%
   filter(!is.na(Foal_Status_P_5yr) & Foal_Status_P_5yr != "NK" &  Foal_Status_P_5yr != "OUT" )
 nrow(fouryear_subset)
 View(fouryear_subset)
+
+
+View(pzp)
+pzp_summary <- pzp %>% 
+  mutate(primer_year = year(Primer)) %>% 
+  group_by(primer_year) %>% 
+  summarise(count =n())
+
+pzp_summary
+
+ggplot(pzp_summary, aes(x = primer_year, y = count)) +
+  geom_col(fill = "steelblue") +  
+  labs(
+       x = "Year",
+       y = "Number of horses") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(min(pzp_summary$primer_year), max(pzp_summary$primer_year), 1))
