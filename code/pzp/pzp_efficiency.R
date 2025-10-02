@@ -118,7 +118,8 @@ summary_pby1
 35/80
 # 43.75 % pregnant
 
-# new 
+# new
+# but where did i get this number from??
 45/(18+45) # 71 % effective
 18/(18+45) # 29 % pregnant
 
@@ -192,28 +193,29 @@ df <- data.frame(
   pregnant = c("pregnant", "not pregnant", "pregnant", "not pregnant","pregnant", "not pregnant"),
   proportion =c(6, 94, 39, 61, 69, 31)
 )
-
+"#1E90FF"
+c("#3CB371", "#9ACD32")
 (year1_barplot <- ggplot(df, aes(x = timing_of_vaccines, y = proportion, fill = factor(pregnant))) +
     geom_bar(stat = "identity", position = position_dodge(width = 0.6), color = "black", width = 0.6) +
-    scale_fill_manual(values = c("#3CB371", "#9ACD32"),  labels = c("not pregnant", "pregnant")) +
+    scale_fill_manual(values = c("#1E90FF", "orange"),  labels = c("Not foaling", "Foaling")) +
     scale_x_discrete(labels = c("a" = " p and b on time", "b" = "p on time, b late", "c" = "p and b late")) +
     theme_classic() +
     labs(x = "\nTiming of vaccines", y = "Proportion of individuals in category (%)\n") +
     theme(legend.position = "bottom",
           legend.title = (element_blank()),
-          axis.title.y = element_text(size = 12), 
+          axis.title.y = element_text(size = 14), 
           axis.title.x =element_blank(),
-          legend.text = element_text(size = 10),
+          legend.text = element_text(size = 14),
           legend.background = element_rect(colour = "grey"),
-          axis.text = element_text(size = 11)))
-# Adjusting the y-coordinate to place labels higher
+          axis.text = element_text(size = 14)))
+# adjusting the y-coordinate to place labels higher
 label_y_position <- max(df$proportion) + 5
 
 year1_barplot +
   annotate("text", x = c(1, 2, 3), y = rep(label_y_position, 3),
-           label = c("n = 32", "n = 18", "n = 13"), size = 4)
+           label = c("n = 32", "n = 18", "n = 13"), size = 5)
 
-ggsave("przewalski/pzp/year1_barplot.png", width = 8, height = 6, dpi = 300)
+ggsave("pzp/plots/year1_barplot_orange_green.png", width = 8, height = 6, dpi = 300)
 
 # year 2 for exact group ----
 # include: got P,B and B2 & data for pregnancy status
@@ -367,13 +369,13 @@ nrow(primer_booster_y6) # 14
 # group 2 - no B3 and B4 but y B2
 no_b3_y6 <- primer_booster_y6 %>% 
   subset (is.na(Booster3)& (is.na(Booster4)) & !is.na(Booster2))
-nrow(no_b3_y6) # 5
+nrow(no_b3_y6) # 
 
 sum_y6<- no_b3_y6 %>% 
   group_by(Foal_Status_P_6yr) %>% 
   summarise(count = length(Name)) %>%
   ungroup()
-sum_y6
+sum_y6 # 5 sample size; 60%
 
 no_b3_y6_all <- year1 %>% 
   subset (is.na(Booster3)& (is.na(Booster4)) & !is.na(Booster2) & 
@@ -385,7 +387,7 @@ no_b3_y6_all <- year1 %>%
             (! (!is.na(Booster1_again) & Booster2_again < Primer + 2190) )& 
             (! (!is.na(Booster2_again) & Booster2_again < Primer + 2190) )&
             (! (!is.na(Primer_again3) & Primer_again3 < Primer + 2190) ) )
-nrow(no_b3_y6) # 5
+nrow(no_b3_y6) 
 
 sum_y6_all<- no_b3_y6_all %>% 
   group_by(Foal_Status_P_6yr) %>% 
@@ -505,10 +507,9 @@ mean(year1$age_at_primer)/365 # 6
 
 # small timeline graph ----
 # x axis: year, y = proprtion of treated mares foaling 
-timeline_data <- read_excel("data/pzp/efficacy_allhorses.xlsx")
+  timeline_data <- read_excel("data/pzp/efficacy_allhorses.xlsx")
 str(timeline_data)
-timeline_data <- timeline_data %>%  rename( notfoaling = 'not foaling' )
-?rename
+
 timeline_data <- timeline_data %>% mutate(
   total = Foaling + Not_foaling,
   foaling_proportion = Foaling/total,
@@ -567,16 +568,20 @@ timeline_graph <- ggplot() +
   geom_point(data = timeline_data, aes(x = factor(Year), color = "Efficacy",  y = notfoaling_proportion), 
               size = 2.5) +
   scale_y_continuous(labels = scales::percent_format(scale = 1)) +
-  scale_x_discrete(labels = c("1\n (67)", "2\n(61)", "3\n(48)", 
-                              "4\n (30)", "5\n (17)", "6\n (12)", 
-                              "7\n (4)", "8\n(3)", "9\n(1)"))+
-  scale_fill_manual(values = c("Foaling" = "skyblue", "Not foaling" = "orange")) +
+  scale_x_discrete(labels = c("1\n (77)", "2\n(66)", "3\n(51)", 
+                              "4\n (35)", "5\n (17)", "6\n (12)", 
+                              "7\n (9)", "8\n(4)", "9\n(3)"))+
+  scale_fill_manual(values = c("Foaling" = "#1E90FF", "Not foaling" = "orange")) +
   scale_color_manual(name = "Efficacy", values = c("Efficacy" = "#4F4F4F")) +
-  labs (x = "\nYears after treatment started (Sample size)", y = "Proportion of mares\n" )+
+  labs (x = "\nYears after treatment started (Sample size)", y = "Proportion of mares" )+
   theme_classic()+
-  theme(legend.title = element_blank())
+  theme(legend.title = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 12)
+        )
 
-
+View(timeline_data)
 print(timeline_graph)
 
 ggsave("pzp/plots/yearly_efficacy_smalldata_9years.png", dpi = 600)
@@ -604,7 +609,7 @@ timeline_long_1b <- timeline_long_1b %>%
   mutate(proportion = proportion * 100)
 timeline_data_1b <- timeline_data_1b %>%
   mutate(notfoaling_proportion = notfoaling_proportion * 100)
-
+View(timeline_data_1b)
 # Create the plot
 timeline_graph_1b <- ggplot() +
   # Side-by-side bars using timeline_long
@@ -616,20 +621,23 @@ timeline_graph_1b <- ggplot() +
             linewidth = 0.7) +
   geom_point(data = timeline_data_1b, aes(x = factor(Year), color = "Efficacy",  y = notfoaling_proportion), 
              size = 2.5) +
-  scale_x_discrete(labels = c("1\n (20)", "2\n(17)", "3\n(15)", 
-                              "4\n (11)", "5\n (7)", "6\n (6)", 
-                              "7\n (2)", "8\n(1)", "9\n(1)"))+
+  scale_x_discrete(labels = c("1\n (25)", "2\n(17)", "3\n(14)", 
+                              "4\n (11)", "5\n (7)", "6\n (8)", 
+                              "7\n (5)", "8\n(1)", "9\n(1)"))+
   
-  scale_fill_manual(values = c("Foaling" = "skyblue", "Not foaling" = "orange")) +
+  scale_fill_manual(values = c("Foaling" = "#1E90FF", "Not foaling" = "orange")) +
   scale_color_manual(name = "Efficacy", values = c("Efficacy" = "#4F4F4F")) +
   labs (x = "\nYears after treatment started", y = "Proportion of mares\n" )+
   theme_classic()+
-  theme(legend.title = element_blank())
+  theme(legend.title = element_blank(),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 12), 
+        legend.text = element_text(size = 12))
 c("#4F4F4F", "#474747", "#7A7A7A")
 
 print(timeline_graph_1b)
 
-ggsave("pzp/plots/yearly_efficacy_smalldata_1booster.png", dpi = 600)
+ggsave("pzp/plots/yearly_efficacy_1booster_revised.png", dpi = 600)
 
 # try to do the same (with efficacy line) with stacked bars also!!
 # population number ----
@@ -874,3 +882,18 @@ c("#FF7F00", "#EE2C2C", "#CD0000")
 
 
 # years / animals treated
+
+# age distribution ----
+
+
+nrow(reversibility_3vacc)
+reversibility_2vacc$age_primer_years <- (reversibility_2vacc$age_at_primer)/365
+reversibility_3vacc$age_primer_years <- (reversibility_3vacc$age_at_primer)/365
+mean(reversibility_2vacc$age_primer_years)
+# 3.651
+mean(reversibility_3vacc$age_primer_years)
+# 6.47 !!!
+(histogram_age_2vacc <- ggplot(reversibility_2vacc, aes (age_primer_years))+
+  geom_histogram())
+(histogram_age_3vacc <-ggplot(reversibility_3vacc, aes (age_primer_years))+
+    geom_histogram())

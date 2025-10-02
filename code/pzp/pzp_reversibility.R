@@ -407,6 +407,7 @@ str(reversibility_data)
 # 3 vaccines: 53 didnt come back, 15 did.
 
 reversibility_2vacc_strict <- reversibility_min2yrs %>% filter(which_vaccines == 2)
+reversibility_2vacc_simple <- reversibility_data %>% filter(which_vaccines == 2)
 reversibility_3vacc_strict <- reversibility_min2yrs %>% filter(which_vaccines == 3)
 
 # 2 vaccines
@@ -555,7 +556,8 @@ ggsave("pzp/plots/returns_in_each_year_3vacc.png", dpi = 600)
 # maybe if the date recorded for something is later than the p + years of data then exclude? 
 # i dont knooow
 
-reversibility_longer_2vacc <- reversibility_2vacc_strict %>% 
+reversibility_longer_2vacc <- reversibility_2vacc_simple %>% 
+  # ABOVE, THIS USED TO BE 2VACC STRICT
   pivot_longer( cols= c(25:34), names_to = "Year_of_foal", values_to = "Pregnancy_status" )
 
 reversibility_longer_2vacc <- reversibility_longer_2vacc %>% 
@@ -572,10 +574,10 @@ reversibility_longer_2vacc <- reversibility_longer_2vacc %>%
   filter ((is.na (Primer_again)) | (!is.na(Primer_again) & Year_of_foal < years_between_primer_and_p2))
 
 
-(reversibility_summary_attempt <- reversibility_longer %>% 
+(reversibility_summary_attempt_2vacc <- reversibility_longer_2vacc %>% 
     group_by(Year_of_foal, Pregnancy_status ) %>% 
     summarise(count = sum(!is.na(Pregnancy_status))))
-View(reversibility_summary_attempt)
+View(reversibility_summary_attempt_2vacc)
 reversibility_summary_attempt <- reversibility_summary_attempt %>% 
   drop_na() %>% 
   filter(Pregnancy_status != "OUT") %>% 
@@ -632,6 +634,7 @@ reversibility_longer_2vacc <- reversibility_longer_2vacc %>%
   filter(is.na(Primer_again) | (Year_of_foal - 1) <= (as.numeric(format(Primer_again, "%Y")) - as.numeric(format(Primer, "%Y"))))
 
 
+View(reversibility_longer_2vacc)
 
 
 
