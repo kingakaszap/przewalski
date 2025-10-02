@@ -1,5 +1,5 @@
 # starts with group who got 3 vaccines, based on code to get efficacy for b1group.
-
+reversibility_3vacc <- read_excel("data/pzp/reversibility_3vacc.xlsx")
 nrow(reversibility_3vacc)
 View(reversibility_3vacc)
 # booster4 and 3 already excluded.
